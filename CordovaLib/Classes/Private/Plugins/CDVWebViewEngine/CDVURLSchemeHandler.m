@@ -174,19 +174,20 @@ static const NSUInteger FILE_BUFFER_SIZE = 1024 * 1024 * 4; // 4 MiB
 
 - (void)webView:(WKWebView *)webView stopURLSchemeTask:(id <WKURLSchemeTask>)urlSchemeTask
 {
-    CDVPlugin <CDVPluginSchemeHandler> *plugin;
-    @synchronized(self.handlerMap) {
-        plugin = [self.handlerMap objectForKey:urlSchemeTask];
-    }
+    CDVPlugin <CDVPluginSchemeHandler> *plugin = nil;
 
     @synchronized(self.handlerMap) {
+        plugin = [self.handlerMap objectForKey:urlSchemeTask];
         [self.handlerMap removeObjectForKey:urlSchemeTask];
     }
 
-    if ([plugin isEqual:[NSNull null]]) {
-        // NSNull means we own this task, so we need to mark it as finished
-        [urlSchemeTask didFinish];
-    } else if ([plugin respondsToSelector:@selector(stopSchemeTask:)]) {
+    // Task is already being stopped/cancelled by WebKit.
+    // Do not call didFinish/didFail here.
+    if (!plugin || [plugin isEqual:[NSNull null]]) {
+        return;
+    }
+
+    if ([plugin respondsToSelector:@selector(stopSchemeTask:)]) {
         [plugin stopSchemeTask:urlSchemeTask];
     }
 }
